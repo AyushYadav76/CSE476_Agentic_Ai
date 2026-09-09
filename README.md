@@ -1,65 +1,73 @@
-####Flight Option Finder Agent
+# ✈️ T10 – Flight Option Finder Agent
 
-####Project Overview
+An Agentic AI system that searches for available flights and selects the best flight option based on the user's **budget and preferences**.
 
-The Flight Option Finder Agent is an Agentic AI application whose goal is:
+The project uses **live Google Flights data through SerpApi** and an **LLM through Groq** to demonstrate a real agent loop with tools, memory, decision-making, and failure handling.
 
-Find and pick a flight within the user's budget.
+---
 
-The agent uses live flight data through SerpApi / Google Flights, compares available prices, remembers user requirements across turns, and selects a suitable option.
+## 🎯 Project Goal
 
-####Agent Architecture
+The goal of this project is to build an AI agent that can:
 
-The project demonstrates the four core parts of an agent:
+* Understand the user's flight requirements
+* Search for available flights
+* Compare flight prices
+* Filter flights according to the user's budget
+* Consider user preferences such as morning flights
+* Remember information from previous turns
+* Select the most suitable flight
+* Explain when no flight fits the user's budget
 
-Goal: Find a suitable flight within the user's budget.
+---
 
-Tools: search_flights() and compare_price().
+## 🤖 Agent Architecture
 
-Memory/State: Stores useful constraints such as budget, route, and preferences.
+The project follows a simple **Goal → Tools → State → Loop → Stop** architecture.
 
-Loop/Stop: Uses a bounded multi-step ReAct loop and stops when enough information is available.
+```text
+                    User
+                     │
+                     ▼
+              Flight Agent
+                     │
+              ┌──────┴──────┐
+              │             │
+              ▼             ▼
+        search_flights   Memory
+              │
+              ▼
+        Flight Results
+              │
+              ▼
+        compare_price
+              │
+              ▼
+        Budget Filtering
+              │
+              ▼
+          Final Answer
+```
 
-####Agent Flow
+The agent uses a **ReAct-style loop**:
 
-User Request
-     ↓
-    LLM
-     ↓
-search_flights()
-     ↓
-Observe Results
-     ↓
-compare_price()
-     ↓
-Observe Ranked Results
-     ↓
-Apply Budget + Preferences
-     ↓
-Final Answer
+```text
+Reason → Call Tool → Observe Result
+       → Reason → Call Tool → Observe Result
+       → Final Answer
+```
 
-####Agent Type
+---
 
-The Flight Option Finder is primarily a Goal-Based Agent.
+## 🛠️ Tools
 
-Its planning style is ReAct (Reason + Act):
+The agent has two main tools.
 
-Decide what action is required.
+### 1. `search_flights()`
 
-Call a tool.
+Searches live flight information using SerpApi / Google Flights.
 
-Observe the result.
-
-Decide the next action.
-
-Produce the final answer.
-
-####Tools
-
-1. search_flights()
-
-Searches live flight options using SerpApi's Google Flights engine.
-
+```python
 search_flights(
     from_city,
     to_city,
@@ -68,76 +76,137 @@ search_flights(
     passengers=1,
     cabin_class="economy"
 )
+```
 
-Example:
+It returns information such as:
 
-search_flights(
-    from_city="Delhi",
-    to_city="Mumbai",
-    departure_date="2026-09-15",
-    passengers=1,
-    cabin_class="economy"
-)
+* Airline
+* Departure time
+* Arrival time
+* Flight duration
+* Number of stops
+* Price
 
-Common city names are converted to IATA codes:
+### 2. `compare_price()`
 
+Takes the flight options returned by the search tool and sorts them from the cheapest to the most expensive.
+
+```python
+compare_price(options)
+```
+
+---
+
+## 🧠 Memory
+
+The agent contains a simple memory system that remembers useful information from previous conversations.
+
+It can remember:
+
+* User budget
+* Previous route
+* Travel preferences
+* Previous flight search information
+
+For example:
+
+```text
+User:
+Find me a morning flight from Delhi to Mumbai under ₹7000.
+
+Agent:
+Searches flights and selects an option.
+
+User:
+What was the best option from my saved search?
+
+Agent:
+Uses the previous search information from memory.
+```
+
+---
+
+## 🔄 Agent Workflow
+
+The agent follows these steps:
+
+1. Receive the user's goal.
+2. Extract important information such as budget, route, date and preferences.
+3. Check previously stored memory.
+4. Decide which tool should be called.
+5. Call `search_flights()`.
+6. Observe the returned flight options.
+7. Call `compare_price()`.
+8. Filter the results according to the user's budget.
+9. Consider the user's preferences.
+10. Select the best available option.
+11. Return the final answer.
+
+---
+
+## 🌐 Live Flight Data
+
+This project uses **SerpApi** to retrieve live Google Flights information.
+
+The system converts common city names into airport IATA codes.
+
+For example:
+
+```text
 Delhi      → DEL
 Mumbai     → BOM
 Bengaluru  → BLR
 Chennai    → MAA
 Hyderabad  → HYD
+Kolkata    → CCU
+```
 
-2. compare_price()
+The project therefore works with real flight-search data instead of a fixed mock dataset.
 
-Receives flight search results and ranks them from cheapest to most expensive.
+---
 
-compare_price(search_results)
+## 🧠 LLM
 
-####Memory
+The agent uses an LLM through **Groq's OpenAI-compatible API**.
 
-AgentMemory allows the agent to remember information across turns, such as:
+The LLM is responsible for:
 
-Budget
+* Understanding the user's request
+* Deciding which tool to use
+* Providing tool arguments
+* Interpreting tool results
+* Deciding whether another tool call is required
+* Producing the final response
 
-Route
+The Python program controls the actual tool execution.
 
-Travel preferences
+---
 
-Previous conversation
+## 🔐 Environment Variables
 
-For example, the user can first ask:
+API keys are stored in a `.env` file and should **never be committed to GitHub**.
 
-Find me a flight from Delhi to Mumbai on September 15,
-2026 under ₹7,000. Prefer morning flights.
+Create a `.env` file:
 
-Then ask:
+```env
+GROQ_API_KEY=your_groq_api_key
+SERPAPI_KEY=your_serpapi_api_key
+```
 
-What is the best option from my saved search?
+Also create `.env.example` containing only placeholders:
 
-The same agent instance can use the earlier conversation and memory.
+```env
+GROQ_API_KEY=your_groq_api_key_here
+SERPAPI_KEY=your_serpapi_api_key_here
+```
 
-####Live Flight Data
+Make sure `.env` is included in `.gitignore`.
 
-The project uses:
+---
 
-SerpApi
-   ↓
-Google Flights
+## 📁 Project Structure
 
-Flight prices and availability are live and can change between runs.
-
-####LLM
-
-The agent uses a Groq-hosted model through an OpenAI-compatible client.
-
-Default model:
-
-openai/gpt-oss-120b
-
-The LLM decides which tool to call, provides tool arguments, interprets observations, and decides when to stop.
-
-####Project Structure
-
+```text
 flight_option_finder/
 │
 ├── app/
@@ -159,153 +228,210 @@ flight_option_finder/
 ├── demo.py
 ├── README.md
 ├── requirements.txt
-└── .env
+├── .env.example
+└── .gitignore
+```
 
-The current search_flights() implementation uses live SerpApi data. The older data/flights.py mock dataset is not used by the live flight-search tool.
+---
 
-####Installation
+## ⚙️ Installation
+
+Clone the repository and enter the project folder:
+
+```bash
+git clone <repository-url>
+cd flight_option_finder
+```
 
 Create a virtual environment:
 
+```bash
 python -m venv .venv
+```
 
-Activate it in Git Bash:
+Activate it on Windows:
 
-source .venv/Scripts/activate
+```bash
+.venv\Scripts\activate
+```
 
 Install dependencies:
 
+```bash
 pip install -r requirements.txt
+```
 
-If necessary:
+Create the `.env` file and add the required API keys.
 
-pip install serpapi
+---
 
-####Environment Setup
+## ▶️ Running the Project
 
-Create a .env file in the project root:
+Run the main demo:
 
-SERPAPI_KEY=YOUR_SERPAPI_KEY
-GROQ_API_KEY=YOUR_GROQ_API_KEY
+```bash
+python demo.py
+```
 
-Never share or commit API keys.
+You can also test the flight-search tool directly:
 
-####Test Live Flight Search
+```bash
+python -c "from app.tools import search_flights; print(search_flights(from_city='Delhi', to_city='Mumbai', departure_date='2026-09-15', passengers=1, cabin_class='economy'))"
+```
 
-Run:
+---
 
-python -c "from app.tools import search_flights; s=search_flights(from_city='Delhi', to_city='Mumbai', departure_date='2026-09-15', passengers=1, cabin_class='economy'); print(s)"
+## 📓 Notebook Demonstration
 
-A successful result starts with:
+The notebook:
 
-Flight search results: DEL → BOM
-Departure date: 2026-09-15
+```text
+T10_Flight_Option_Finder_Clean_Live_Demo.ipynb
+```
 
-####Test Price Comparison
+contains three demonstrations.
 
-Run:
-
-python -c "from app.tools import search_flights, compare_price; s=search_flights(from_city='Delhi', to_city='Mumbai', departure_date='2026-09-15', passengers=1, cabin_class='economy'); print(compare_price(s))"
-
-The output should start with:
-
-Flights ranked by price:
-
-####Run the Agent
-
-After configuring the API keys:
-
-python -m tests.test_live_agent
-
-A successful multi-step trace should contain calls similar to:
-
-[state] ...
-[step 1] search_flights(...)
-[OK] -> ...
-[step 2] compare_price(...)
-[OK] -> ...
-[step 3] done
-
-The exact flight results and prices may change because the data is live.
-
-####Notebook Demonstrations
-
-The clean notebook contains only the important live demonstrations.
-
-###Demo 1 — Budget + Preference
-
-Example request:
-
-Find me a flight from Delhi to Mumbai
-on September 15, 2026.
-
-My budget is ₹7000.
-
-I am traveling alone in economy class.
-
-Prefer a morning flight.
-
-The agent searches live flights, compares prices, applies the budget and preference, and returns a suitable option.
-
-###Demo 2 — Memory
-
-Follow-up:
-
-What is the best option from my saved search?
-
-The same agent instance uses previous conversation and memory.
-
-###Demo 3 — No Fit
+### Demo 1 – Flight Within Budget
 
 Example:
 
-Find me a flight from Delhi to Bengaluru
-on September 15, 2026.
+```text
+From: Delhi
+To: Mumbai
+Date: 15 September 2026
+Budget: ₹7000
+Preference: Morning
+Passengers: 1
+Cabin: Economy
+```
 
-My budget is ₹4000.
+The agent searches live flights, compares prices and selects a suitable option.
 
-I am traveling alone in economy class.
+### Demo 2 – Memory
 
-If no returned flight fits the budget, the agent reports that instead of inventing a result.
+The same agent is used for a follow-up question.
 
-###Failure Handling
+```text
+What is the best option from my saved search?
+```
 
-The project handles:
+The agent uses information stored in memory from the previous interaction.
 
-- Missing SERPAPI_KEY
+### Demo 3 – No Suitable Budget
 
-- Flight API errors
+Example:
 
-- No returned flight options
+```text
+From: Delhi
+To: Bengaluru
+Date: 15 September 2026
+Budget: ₹4000
+```
 
-- No flight within the user's budget
+If no available flight satisfies the budget, the agent reports that no suitable option was found instead of inventing a flight.
 
-- Invalid tool arguments
+---
 
-- Maximum agent step limit
+## 🛡️ Failure Handling
 
-When no flight fits the budget, the agent should clearly report that fact and identify the cheapest available option when possible.
+The project includes basic safeguards for unreliable or invalid results.
 
-###Requirements Demonstrated
+The agent:
 
-Requirement                                   Implementation
+* Validates required flight-search inputs
+* Checks API configuration
+* Uses a whitelist of allowed tools
+* Handles tool execution errors
+* Retries failed tool calls
+* Prevents unknown tools from being executed
+* Uses a maximum number of agent steps
+* Does not invent flight prices or availability
+* Reports when no flight fits the user's budget
 
-Goal                                          Find a flight within budget
+---
 
-Tool 1                                        search_flights()
+## 🔒 Tool Whitelisting
 
-Tool 2                                        compare_price()
+Only registered tools can be executed by the agent.
 
-Multi-step behavior                           Search → Compare → Decide
+```python
+REGISTRY = {
+    "search_flights": search_flights,
+    "compare_price": compare_price
+}
+```
 
-Memory                                        AgentMemory + conversation
+This prevents the LLM from directly executing arbitrary Python functions.
 
-Agent style                                   ReAct
+---
 
-Agent type                                    Goal-based
+## 🧪 Testing
 
-Live data                                     SerpApi / Google Flights
+The project contains tests in:
 
-Failure handling                              API errors, no results, no-fit budget
+```text
+tests/test_project.py
+```
 
-Stop condition                                Final answer / step limit
+Run them using:
+
+```bash
+pytest
+```
+
+---
+
+## 📌 Requirements
+
+| Component         | Purpose                         |
+| ----------------- | ------------------------------- |
+| Python            | Application development         |
+| Groq              | LLM inference                   |
+| SerpApi           | Live Google Flights data        |
+| OpenAI Python SDK | LLM API interface               |
+| python-dotenv     | Environment variable management |
+| pytest            | Testing                         |
+| Jupyter Notebook  | Agent demonstration             |
+
+---
+
+## 🎓 Agent Concepts Demonstrated
+
+This project demonstrates the following Agentic AI concepts:
+
+* Goal-based agent
+* ReAct-style reasoning loop
+* Tool calling
+* Tool registry
+* Function execution
+* State and memory
+* Multi-step decision making
+* Budget-based decision making
+* Error handling
+* Retry mechanism
+* Step limits
+* Live API integration
+
+---
+
+## ✅ Expected Outcome
+
+The final system demonstrates a functional Agentic AI workflow where the agent:
+
+```text
+Understand Goal
+      ↓
+Remember Context
+      ↓
+Search Live Flights
+      ↓
+Compare Prices
+      ↓
+Apply Budget & Preferences
+      ↓
+Select Best Option
+      ↓
+Return Answer
+```
+
+This satisfies the main requirements of the **T10 – Flight Option Finder Agent** assignment.
